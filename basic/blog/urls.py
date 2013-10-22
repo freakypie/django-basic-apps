@@ -1,9 +1,9 @@
 from django.conf.urls.defaults import *
-
+from .views import PostDetailView
 
 urlpatterns = patterns('basic.blog.views',
     url(r'^(?P<year>\d{4})/(?P<month>\w{3})/(?P<day>\d{1,2})/(?P<slug>[-\w]+)/$',
-        view='post_detail',
+        view=PostDetailView.as_view(),
         name='blog_detail'
     ),
     url(r'^(?P<year>\d{4})/(?P<month>\w{3})/(?P<day>\d{1,2})/$',

@@ -11,6 +11,7 @@ from django.conf import settings
 from basic.blog.models import *
 from basic.tools.constants import STOP_WORDS_RE
 from tagging.models import Tag, TaggedItem
+from django.views.generic.dates import DateDetailView, _date_from_string
 
 
 def post_list(request, page=0, paginate_by=20, **kwargs):
@@ -62,27 +63,34 @@ def post_archive_day(request, year, month, day, **kwargs):
 post_archive_day.__doc__ = date_based.archive_day.__doc__
 
 
-def post_detail(request, slug, year, month, day, **kwargs):
+class PostDetailView(DateDetailView):
     """
     Displays post detail. If user is superuser, view will display 
     unpublished post detail for previewing purposes.
     """
-    posts = None
-    if request.user.is_superuser:
-        posts = Post.objects.all()
-    else:
-        posts = Post.objects.published()
-    return date_based.object_detail(
-        request,
-        year=year,
-        month=month,
-        day=day,
-        date_field='publish',
-        slug=slug,
-        queryset=posts,
-        **kwargs
-    )
-post_detail.__doc__ = date_based.object_detail.__doc__
+    date_field = "publish"
+    allow_future = True
+
+    def get_queryset(self):
+        if self.request.user.is_superuser:
+            posts = Post.objects.all()
+        else:
+            posts = Post.objects.published()
+        return posts
+
+    def get_object(self):
+        year = self.get_year()
+        month = self.get_month()
+        day = self.get_day()
+        date = _date_from_string(year, self.get_year_format(),
+                                 month, self.get_month_format(),
+                                 day, self.get_day_format())
+
+        return self.get_queryset().filter(
+            publish__year=date.year,
+            publish__month=date.month,
+            publish__day=date.day
+        ).get(slug=self.kwargs['slug'])
 
 
 def category_list(request, template_name = 'blog/category_list.html', **kwargs):
@@ -152,7 +160,7 @@ def search(request, template_name='blog/post_search.html'):
 
     This template will allow you to setup a simple search form that will try to return results based on
     given search strings. The queries will be put through a stop words filter to remove words like
-    'the', 'a', or 'have' to help imporve the result set.
+    'the', 'a', or 'have' to help improve the result set.
 
     Template: ``blog/post_search.html``
     Context:
